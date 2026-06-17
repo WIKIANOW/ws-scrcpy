@@ -153,13 +153,25 @@ export class WdaRunner extends TypedEmitter<WdaRunnerEvents> {
             const ports = await Promise.all([portfinder.getPortPromise(), portfinder.getPortPromise()]);
             this.wdaLocalPort = ports[0];
             this.mjpegServerPort = ports[1];
+            // Real-device WebDriverAgent signing. Configure via env so we don't hardcode
+            // a developer identity (xcodebuild fails with code 65 when WDA is unsigned):
+            //   WDA_TEAM_ID    - Apple Team ID, e.g. 437MK6S9NL (from `security find-identity -v -p codesigning`)
+            //   WDA_SIGNING_ID - signing identity, default "Apple Development"
+            //   WDA_BUNDLE_ID  - unique WDA bundle id, e.g. com.<you>.WebDriverAgentRunner (required for personal teams)
+            //   WDA_USE_PREBUILT=true - reuse an already-built+signed WDA (faster; only after a first successful build)
+            const xcodeOrgId = process.env.WDA_TEAM_ID;
+            const xcodeSigningId = process.env.WDA_SIGNING_ID || 'Apple Development';
+            const updatedWDABundleId = process.env.WDA_BUNDLE_ID;
+            const usePrebuiltWDA = process.env.WDA_USE_PREBUILT === 'true';
             await server.driver.createSession({
                 platformName: 'iOS',
                 deviceName: 'my iphone',
                 udid: this.udid,
                 wdaLocalPort: this.wdaLocalPort,
-                usePrebuiltWDA: true,
+                usePrebuiltWDA,
                 mjpegServerPort: remoteMjpegServerPort,
+                ...(xcodeOrgId ? { xcodeOrgId, xcodeSigningId } : {}),
+                ...(updatedWDABundleId ? { updatedWDABundleId } : {}),
             });
             await server.driver.wda.xcodebuild.waitForStart(new timing.Timer().start());
             if (server.driver?.wda?.xcodebuild?.xcodebuild) {
