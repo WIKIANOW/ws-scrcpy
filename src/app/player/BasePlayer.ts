@@ -217,7 +217,7 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
         const key = `${this.getFullStorageKey(storageKeyPrefix, udid, displayInfo)}:fit`;
         const saved = window.localStorage.getItem(key);
         if (!saved) {
-            return false;
+            return true;
         }
         try {
             parsedValue = JSON.parse(saved);
